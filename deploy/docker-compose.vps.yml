@@ -1,0 +1,24 @@
+# Боевой запуск на VPS: контейнер в сети уже работающего Caddy (он выдаёт HTTPS и проксирует на orders-sync:8000).
+# cd /opt/orders-sync && docker compose -f deploy/docker-compose.vps.yml up -d --build
+name: orders-sync
+
+services:
+  orders-sync:
+    build: ..
+    restart: unless-stopped
+    env_file:
+      - path: ../.env
+        required: false
+    volumes:
+      - data:/srv/data
+    mem_limit: 256m
+    networks:
+      - edge
+
+networks:
+  edge:
+    external: true
+    name: hoztrade_default
+
+volumes:
+  data:
