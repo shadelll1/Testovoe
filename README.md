@@ -3,7 +3,8 @@
 Забирает «сырые» заявки из `https://test.ooobs.ru/api/orders`, приводит телефоны к `+7XXXXXXXXXX`,
 отбрасывает невалидные, схлопывает дубли по телефону и отдаёт клиентов со статистикой.
 
-**Живой URL:** https://orders.141-133-205-39.sslip.io/api/clients (то же самое отдаёт `/`)
+**Живой URL:** https://orders.добрострой23.рф/api/clients
+(`https://orders.xn--23-9kcl0a2abaqbkm.xn--p1ai/api/clients`, то же самое отдаёт `/`)
 
 ```json
 {
@@ -63,17 +64,25 @@ python -m venv .venv && .venv/Scripts/pip install -r requirements-dev.txt   # Li
 
 ## Деплой
 
-VPS с Docker: контейнер `orders-sync` подключён к сети уже работающего Caddy, который получает сертификат
-Let's Encrypt и проксирует на него. Домен — `sslip.io` (резолвит имя с IP в сам IP), отдельная DNS-запись не нужна.
+Виртуальный хостинг Beget: Passenger запускает WSGI-приложение из `passenger_wsgi.py` (FastAPI — ASGI,
+переходник [a2wsgi](https://github.com/abersheeran/a2wsgi)). Python 3.12 — портативная сборка
+python-build-standalone в папке сайта, зависимости — в `venv` рядом. HTTPS — бесплатный сертификат хостинга.
 
-```bash
-git archive HEAD | ssh root@<сервер> 'mkdir -p /opt/orders-sync && tar -x -C /opt/orders-sync'
-ssh root@<сервер> 'cd /opt/orders-sync && docker compose -f deploy/docker-compose.vps.yml up -d --build'
 ```
+~/orders/
+  passenger_wsgi.py  app/  requirements.txt   код из git
+  python312/  venv/                            Python и зависимости
+  data/sync.sqlite3                            результат синхронизации
+  public_html/.htaccess                        PassengerEnabled On, PassengerPython ~/orders/venv/bin/python
+```
+
+Обновление: `git archive HEAD | ssh <хостинг> 'tar -x -C ~/orders && ~/orders/venv/bin/pip install -r ~/orders/requirements.txt && touch ~/orders/tmp/restart.txt'`.
+
+Для сервера с Docker — `Dockerfile` и `docker-compose.yml` (`docker compose up --build`, порт 8000).
 
 ## Секреты
 
 У сервиса нет секретов: источник публичный, токенов не нужно. Вся конфигурация — переменные окружения;
-`.env` в `.gitignore` и `.dockerignore`, в репозитории только `.env.example`. На сервере compose подключает
-`/opt/orders-sync/.env` через `env_file` (файл необязательный, права `600`) — появись токен источника,
-он пойдёт туда, а не в код, образ или git.
+`.env` в `.gitignore` и `.dockerignore`, в репозитории только `.env.example`. На хостинге переменные задаются в
+`.htaccess` сайта (`SetEnv`), в Docker — через `env_file`; появись токен источника, он пойдёт туда, а не в код,
+образ или git.
